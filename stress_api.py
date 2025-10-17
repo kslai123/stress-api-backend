@@ -53,3 +53,40 @@ async def predict(request: Request):
 
     except Exception as e:
         return {"error": str(e)}
+
+import requests  # add this if not already imported
+
+API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+@app.post("/chat")
+async def chat(request: Request):
+    try:
+        data = await request.json()
+        user_message = data.get("message", "")
+
+        system_prompt = {
+            "role": "system",
+            "content": """You are CalmViz, a friendly and empathetic stress-relief assistant.
+            Respond warmly in 2–3 sentences. If asked to switch to Mandarin, reply:
+            '你好！今天我可以帮你做些什么呢？'"""
+        }
+
+        payload = {
+            "model": "openai/gpt-4o-mini",
+            "messages": [system_prompt, {"role": "user", "content": user_message}]
+        }
+
+        headers = {
+            "Authorization": f"Bearer {API_KEY}",
+            "Content-Type": "application/json",
+            "X-Title": "CalmViz Chat"
+        }
+
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions",
+                                 json=payload, headers=headers)
+
+        # Return the JSON reply directly
+        return response.json()
+
+    except Exception as e:
+        return {"error": str(e)}
