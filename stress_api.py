@@ -2,13 +2,22 @@ from fastapi import FastAPI, Request
 import joblib
 import numpy as np
 import json
+import os
 
 app = FastAPI()
 
-# Load model once (reuse for all requests)
-model = joblib.load(r"C:\xampp\htdocs\stress_prediction\stress_model.pkl")
-top_features = joblib.load(r"C:\xampp\htdocs\stress_prediction\top_features.pkl")
-top_feature_encoders = joblib.load(r"C:\xampp\htdocs\stress_prediction\top_feature_encoders.pkl")
+# ✅ Get the directory where this file is located
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# ✅ Use relative paths (this works locally + on Render)
+model_path = os.path.join(BASE_DIR, "stress_model.pkl")
+features_path = os.path.join(BASE_DIR, "top_features.pkl")
+encoders_path = os.path.join(BASE_DIR, "top_feature_encoders.pkl")
+
+# ✅ Load once when server starts
+model = joblib.load(model_path)
+top_features = joblib.load(features_path)
+top_feature_encoders = joblib.load(encoders_path)
 
 @app.post("/predict")
 async def predict(request: Request):
