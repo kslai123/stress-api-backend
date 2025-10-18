@@ -1,10 +1,20 @@
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 import joblib
 import numpy as np
 import json
 import os
 
 app = FastAPI()
+
+# ✅ Allow frontend access from any domain (or restrict later)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # or your frontend URL only
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ✅ Get the directory where this file is located
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
