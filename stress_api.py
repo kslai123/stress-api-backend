@@ -101,15 +101,30 @@ async def chat(request: Request):
     except Exception as e:
         return {"error": str(e)}
     
-    # Add these imports near the top of your file if not already present
+    from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 import requests
 import json
-from fastapi import Request, HTTPException
+import os
 
-# Use your existing API_KEY env variable
+app = FastAPI()
+
+# Enable CORS so your Infinity Free site can call this API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with your actual domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Get API key from environment variable
 API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-# The /suggest endpoint
+@app.get("/")
+async def root():
+    return {"status": "ok", "message": "Suggest API is running"}
+
 @app.post("/suggest")
 async def suggest(request: Request):
     """
@@ -129,15 +144,15 @@ async def suggest(request: Request):
     lng = body.get("lng", None)
     town = body.get("town", None)
 
-    # Build location part exactly similar to your PHP logic
+    # Build location part exactly like PHP
     locationPart = ""
     if lat and lng:
         locationPart += f"User location: latitude = {lat}, longitude = {lng}. "
     if town:
         locationPart += f"User town: {town}."
 
-    # === Insert the full RULES / JSON format prompt here (exact text from your PHP) ===
-    RULES_FORMAT = r'''
+    # Full RULES / JSON format prompt (exact same as PHP)
+    RULES_FORMAT = '''
 RESPONSE FORMAT: Return your answer ONLY as a JSON object.  
 Always follow this exact structure:
 
@@ -162,7 +177,7 @@ Always follow this exact structure:
   },
   "travel": {
     "title": "",               // If budget exists → descriptive trip name. If no budget → leave empty.
-    "budget": "",              // Copy user’s budget. If empty → no travel plan should be generated.
+    "budget": "",              // Copy user's budget. If empty → no travel plan should be generated.
     "plan": [],                // Must remain [] if budget is empty
     "budget_breakdown": {}     // Must remain {} if budget is empty
   },
@@ -197,7 +212,7 @@ RULES:
    * Only if budget exists → then generate travel.title, plan, and budget_breakdown.
    * The user will not provide a destination, so you must select a suitable, budget-friendly destination in Malaysia.
    * Always include a `travel.title` for the trip (e.g., "Exploring Penang" or "Malacca Cultural Getaway").
-   * Always copy the user’s budget into `travel.budget`.
+   * Always copy the user's budget into `travel.budget`.
    * Always include `travel.title` with a descriptive destination name. 
    *If user did not give a place, choose a suitable student-friendly travel destination in Malaysia
    * In `travel.plan`, create a **detailed multi-day travel itinerary** (2–4 days depending on budget).
@@ -228,7 +243,7 @@ RULES:
    * Ensure the link is accessible and not behind a paywall.
    
 - If activity is **enjoying meals** →  
-   * Use provided `lat` and `lng` (user’s location) to recommend **3–5 nearby restaurants or street food stalls**.  
+   * Use provided `lat` and `lng` (user's location) to recommend **3–5 nearby restaurants or street food stalls**.  
    * Fill `meals.nearby_food` with short names of suggested dishes (e.g., "Nasi Lemak", "Char Kway Teow").  
    * Fill `meals.restaurant_details` with objects like:  
      {
@@ -249,22 +264,46 @@ RULES:
 
     prompt = f"You are an AI assistant that recommends stress-relief activities.\nUser input activity: {activity}\nUser budget: {budget}\n{locationPart}\n{RULES_FORMAT}"
 
-    # Build OpenRouter request
+    # Build OpenRouter request (exactly like PHP)
     payload = {
-        "model": "gpt-5-pro",
+        "model": "openai/gpt-5-pro",
         "messages": [
             {"role": "system", "content": "You are a helpful assistant that only outputs valid JSON."},
             {"role": "user", "content": prompt}
         ]
     }
 
-    headers = [
-        "Content-Type: application/json",
-        f"Authorization: Bearer {API_KEY}"
-    ]
+    # Make API call to OpenRouter
+    try:
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {API_KEY}"
+            },
+            json=payload,
+            timeout=30
+        )
+        response.raise_for_status()
+        
+        response_data = response.json()
+        
+        # Extract AI message content (same as PHP logic)
+        if "choices" in response_data and len(response_data["choices"]) > 0:
+            content = response_data["choices"][0]["message"]["content"]
+            # Parse the JSON string from AI and return it
+            return json.loads(content)
+        else:
+            raise HTTPException(status_code=500, detail="No response from AI")
+            
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"API request failed: {str(e)}")
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"Invalid JSON response: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-    # Use requests (in Python we'll use requests) with timeout
-    # The PHP original used file_get_contents; the Python version below uses requests.post()
 
-    # Continue with response parsing...
-
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
