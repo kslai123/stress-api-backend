@@ -250,7 +250,7 @@ RULES:
 
     # Build OpenRouter request (exactly like PHP)
     payload = {
-        "model": "openai/gpt-5-pro",
+        "model": "openai/gpt-4o-mini",
         "messages": [
             {"role": "system", "content": "You are a helpful assistant that only outputs valid JSON."},
             {"role": "user", "content": prompt}
