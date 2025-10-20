@@ -2,6 +2,8 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient 
 from bson import ObjectId
+from pydantic import BaseModel
+from datetime import datetime
 import joblib
 import numpy as np
 import json
@@ -39,6 +41,11 @@ top_feature_encoders = joblib.load(encoders_path)
 
 # ✅ Get OpenRouter API Key
 API_KEY = os.getenv("OPENROUTER_API_KEY")
+@app.post("/save")
+async def save_recommendation(payload: Dict[str, Any]):
+    payload['saved_at'] = datetime.utcnow()
+    result = collection.insert_one(payload)
+    return {"status": "OK", "id": str(result.inserted_id)}
 
 @app.get("/history")
 async def get_history(user_id: str, page: int = 1, items: int = 9):
