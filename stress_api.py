@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pymongo import MongoClient 
 import joblib
 import numpy as np
 import json
@@ -7,6 +8,11 @@ import os
 import requests
 
 app = FastAPI()
+
+MONGO_URI = os.getenv("MONGO_URI")  # Store this in Render Environment
+mongo_client = MongoClient(MONGO_URI)
+mongo_db = mongo_client["stressapp"]
+history_collection = mongo_db["recommendations"]
 
 # ✅ Allow frontend access from any domain (or restrict later)
 app.add_middleware(
@@ -32,6 +38,30 @@ top_feature_encoders = joblib.load(encoders_path)
 
 # ✅ Get OpenRouter API Key
 API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+@app.get("/history")
+async def get_history(user_id: str, page: int = 1, items: int = 9):
+    skip = (page - 1) * items
+    
+    total_records = history_collection.count_documents({"user_id": user_id})
+    total_pages = (total_records + items - 1) // items  # ceil
+    
+    cursor = history_collection.find(
+        {"user_id": user_id},
+        sort=[("saved_at", -1)],
+        skip=skip,
+        limit=items
+    )
+    
+    records = []
+    for doc in cursor:
+        doc["_id"] = str(doc["_id"])  # convert ObjectId to string
+        records.append(doc)
+
+    return {
+        "totalPages": total_pages,
+        "records": records
+    }
 
 @app.get("/")
 async def root():
