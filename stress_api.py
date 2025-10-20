@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient 
 from bson import ObjectId
+from typing import Any, Dict
 from pydantic import BaseModel
 from datetime import datetime
 import joblib
