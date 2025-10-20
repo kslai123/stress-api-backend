@@ -43,7 +43,7 @@ API_KEY = os.getenv("OPENROUTER_API_KEY")
 @app.get("/history")
 async def get_history(user_id: str, page: int = 1, items: int = 9):
     try:
-        user_id = ObjectId(user_id)   # <-- convert here
+        user_id = int(user_id)   # ✅ CORRECT
     except:
         return {"totalPages": 0, "records": []}
 
