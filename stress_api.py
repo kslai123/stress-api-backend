@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient 
+from bson import ObjectId
 import joblib
 import numpy as np
 import json
@@ -41,6 +42,11 @@ API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 @app.get("/history")
 async def get_history(user_id: str, page: int = 1, items: int = 9):
+    try:
+        user_id = ObjectId(user_id)   # <-- convert here
+    except:
+        return {"totalPages": 0, "records": []}
+
     skip = (page - 1) * items
     
     total_records = history_collection.count_documents({"user_id": user_id})
@@ -52,16 +58,14 @@ async def get_history(user_id: str, page: int = 1, items: int = 9):
         skip=skip,
         limit=items
     )
-    
+
     records = []
     for doc in cursor:
-        doc["_id"] = str(doc["_id"])  # convert ObjectId to string
+        doc["_id"] = str(doc["_id"])
+        doc["user_id"] = str(doc["user_id"])  # optional: convert for frontend
         records.append(doc)
 
-    return {
-        "totalPages": total_pages,
-        "records": records
-    }
+    return {"totalPages": total_pages, "records": records}
 
 @app.get("/")
 async def root():
