@@ -44,7 +44,7 @@ top_feature_encoders = joblib.load(encoders_path)
 API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 @app.post("/save")
-async def save_recommendation(payload: Dict[str, Any]):
+async def save_recommendation(request: Request):
     """
     Save a recommendation to MongoDB.
     Expected payload structure matches what PHP sends:
@@ -66,6 +66,19 @@ async def save_recommendation(payload: Dict[str, Any]):
     }
     """
     try:
+        # Get the payload from request body
+        payload = await request.json()
+        
+        # Validate user_id exists
+        if "user_id" not in payload:
+            raise HTTPException(status_code=400, detail="user_id is required")
+        
+        # Ensure user_id is stored as integer (to match /history endpoint)
+        try:
+            payload["user_id"] = int(payload["user_id"])
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="user_id must be a valid integer")
+        
         # Add timestamp
         payload['saved_at'] = datetime.utcnow()
         
@@ -77,6 +90,8 @@ async def save_recommendation(payload: Dict[str, Any]):
             "id": str(result.inserted_id),
             "message": "Recommendation saved successfully"
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save: {str(e)}")
 
