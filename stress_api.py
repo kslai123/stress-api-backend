@@ -42,11 +42,43 @@ top_feature_encoders = joblib.load(encoders_path)
 
 # ✅ Get OpenRouter API Key
 API_KEY = os.getenv("OPENROUTER_API_KEY")
+
 @app.post("/save")
 async def save_recommendation(payload: Dict[str, Any]):
-    payload['saved_at'] = datetime.utcnow()
-    result = collection.insert_one(payload)
-    return {"status": "OK", "id": str(result.inserted_id)}
+    """
+    Save a recommendation to MongoDB.
+    Expected payload structure matches what PHP sends:
+    {
+        "user_id": int,
+        "activity": str,
+        "stress_level": str,
+        "budget": str,
+        "recommendation": dict,
+        "action_title": str,
+        "action_description": str,
+        "action_steps": list,
+        "extras": dict,
+        "links": dict,
+        "travel": dict,
+        "meals": dict,
+        "raw_json": str,
+        "content_size": int
+    }
+    """
+    try:
+        # Add timestamp
+        payload['saved_at'] = datetime.utcnow()
+        
+        # Insert into MongoDB using the correct collection variable
+        result = history_collection.insert_one(payload)
+        
+        return {
+            "status": "OK", 
+            "id": str(result.inserted_id),
+            "message": "Recommendation saved successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save: {str(e)}")
 
 @app.get("/history")
 async def get_history(user_id: str, page: int = 1, items: int = 9):
